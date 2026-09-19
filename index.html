@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Consulta de Preço — Feira do Livro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f6f4ef">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Consulta Preço">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --paper:#f6f4ef;
+    --card:#ffffff;
+    --ink:#14120f;
+    --muted:#6b655b;
+    --line:#e4dfd3;
+    --chip:#efebe1;
+    --soft:#3d3729;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{ display:none !important; }
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    -webkit-text-size-adjust:100%;
+  }
+  svg.icon{ width:1em; height:1em; display:inline-block; vertical-align:-0.15em; }
+  .icon{ stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .icon.filled{ fill:currentColor; stroke:none; }
+
+  /* --- Topo --- */
+  .topbar{
+    width:100%;
+    max-width:520px;
+    padding:max(14px, env(safe-area-inset-top)) 20px 12px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .topbar .logo{ height:40px; width:auto; display:block; flex:0 0 auto; }
+  .topbar .titles{ flex:1; min-width:0; }
+  .topbar h1{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size:21px;
+    line-height:1.15;
+    margin:0;
+    font-weight:700;
+  }
+  .topbar .titles span{
+    display:block;
+    font-size:12.5px;
+    color:var(--muted);
+    margin-top:2px;
+  }
+  #btn-menu{
+    flex:0 0 auto;
+    width:44px;
+    height:44px;
+    padding:0;
+    justify-content:center;
+    background:none;
+    border:none;
+    border-radius:12px;
+    color:var(--ink);
+  }
+  #btn-menu .icon{ width:22px; height:22px; }
+
+  /* --- Menu --- */
+  .menu-panel{
+    width:100%;
+    max-width:520px;
+    padding:0 20px 6px;
+  }
+  .menu-card{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--card);
+    padding:14px 16px;
+    margin-bottom:10px;
+  }
+  .file-status{
+    font-size:12.5px;
+    color:var(--soft);
+    margin-bottom:10px;
+    line-height:1.5;
+  }
+  .file-status .err{ color:#b3261e; }
+
+  .stage{
+    width:100%;
+    max-width:520px;
+    padding:4px 20px 28px;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+
+  /* --- Câmera (visor e botões sobre o visor: inalterados) --- */
+  #reader-wrap{
+    position:relative;
+    border-radius:20px;
+    background:#000;
+    aspect-ratio: 3/1;
+    overflow:hidden;
+  }
+  #reader{ width:100%; height:100%; }
+  #reader video{
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover;
+  }
+  .scan-frame{
+    position:absolute;
+    inset:12% 5%;
+    pointer-events:none;
+  }
+  .scan-frame i{
+    position:absolute;
+    width:26px;
+    height:26px;
+    border:2.5px solid #fff;
+    opacity:0.9;
+    transition: border-color 0.12s ease;
+  }
+  .scan-frame i:nth-child(1){ top:0; left:0; border-right:none; border-bottom:none; border-top-left-radius:6px; }
+  .scan-frame i:nth-child(2){ top:0; right:0; border-left:none; border-bottom:none; border-top-right-radius:6px; }
+  .scan-frame i:nth-child(3){ bottom:0; left:0; border-right:none; border-top:none; border-bottom-left-radius:6px; }
+  .scan-frame i:nth-child(4){ bottom:0; right:0; border-left:none; border-top:none; border-bottom-right-radius:6px; }
+  .scan-frame.success i{ border-color:#3ecf5e; }
+  .scan-frame.success{ animation: scanFlash 0.5s ease; }
+  @keyframes scanFlash{
+    0%{ filter:drop-shadow(0 0 0 rgba(62,207,94,0)); }
+    30%{ filter:drop-shadow(0 0 6px rgba(62,207,94,0.9)); }
+    100%{ filter:drop-shadow(0 0 0 rgba(62,207,94,0)); }
+  }
+
+  .cam-overlay-btn{
+    position:absolute;
+    bottom:8px;
+    width:34px; height:34px;
+    border-radius:50%;
+    background:rgba(20,18,16,0.55);
+    backdrop-filter:blur(2px);
+    border:none;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+  }
+  .cam-overlay-btn .icon{ width:16px; height:16px; }
+  #btn-flip{ left:8px; }
+  #btn-torch{ right:8px; }
+  #btn-torch.active{ background:#e8b93f; color:#1c1a17; }
+
+  /* --- Botões --- */
+  .btnrow{ display:flex; gap:10px; }
+  button{
+    font-family:inherit;
+    font-size:14.5px;
+    font-weight:600;
+    padding:14px 16px;
+    background:var(--ink);
+    color:#fff;
+    border:1px solid var(--ink);
+    border-radius:14px;
+    cursor:pointer;
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+  }
+  button .icon{ width:17px; height:17px; }
+  button.secondary{
+    background:var(--card);
+    color:var(--ink);
+    border:1px solid var(--line);
+  }
+  button:active{ transform:translateY(1px); }
+  button:focus-visible, select:focus-visible, input:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+  /* --- Controles da câmera (embaixo, uso ocasional) --- */
+  .cam-controls{ display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+  .camera-card{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:9px 14px;
+    background:var(--card);
+  }
+  .camera-card .icon{ width:19px; height:19px; flex:0 0 auto; color:var(--ink); }
+  .camera-card .cam-field{
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+  }
+  .camera-card .cam-label{
+    font-size:11.5px;
+    color:var(--muted);
+  }
+  .camera-card select{
+    appearance:none;
+    -webkit-appearance:none;
+    border:none;
+    background:transparent;
+    font-family: inherit;
+    font-size:15px;
+    color:var(--ink);
+    padding:0;
+    width:100%;
+    text-overflow:ellipsis;
+  }
+  .camera-card .chevron{ flex:0 0 auto; width:16px; height:16px; color:var(--muted); pointer-events:none; }
+  #btn-debug{ width:100%; flex:none; }
+  .cam-actions button{ padding:12px 10px; font-size:13.5px; gap:7px; }
+  .cam-actions button .icon{ width:16px; height:16px; }
+
+  .status{
+    font-size:12.5px;
+    text-align:center;
+    color:var(--muted);
+    min-height:16px;
+    margin-top:-4px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+  }
+  .status .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--muted);
+    flex:0 0 auto;
+  }
+  #file-input{ display:none; }
+
+  .aviso{
+    border:1px solid #d9b26a;
+    background:#fbf3e0;
+    color:#5b4413;
+    border-radius:12px;
+    padding:10px 14px;
+    font-size:12.5px;
+    line-height:1.45;
+  }
+
+  /* --- Busca por título / autor --- */
+  .search{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:4px 4px 4px 14px;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .search:focus-within{
+    border-color:var(--ink);
+    box-shadow:0 0 0 3px rgba(20,18,15,0.08);
+  }
+  .search > .icon{ width:18px; height:18px; color:var(--muted); flex:0 0 auto; }
+  .search input{
+    flex:1;
+    min-width:0;
+    font-family:inherit;
+    font-size:16px;
+    padding:12px 4px;
+    border:none;
+    outline:none;
+    background:transparent;
+    color:var(--ink);
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  .search input::placeholder{ color:var(--muted); }
+  .search input::-webkit-search-cancel-button,
+  .search input::-webkit-search-decoration{ -webkit-appearance:none; display:none; }
+  .search .clear{
+    flex:0 0 auto;
+    width:34px;
+    height:34px;
+    padding:0;
+    border:none;
+    border-radius:50%;
+    background:var(--chip);
+    color:var(--muted);
+    justify-content:center;
+  }
+  .search .clear .icon{ width:14px; height:14px; }
+  .search #btn-search{
+    flex:0 0 auto;
+    padding:11px 18px;
+    border-radius:12px;
+  }
+
+  /* --- Resultado --- */
+  .result{
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:var(--card);
+    overflow:hidden;
+  }
+  .empty, .notice{
+    padding:28px 22px;
+    text-align:center;
+    color:var(--muted);
+  }
+  .empty .icon{
+    width:32px; height:32px;
+    margin-bottom:12px;
+    color:var(--ink);
+  }
+  .empty b, .notice b{
+    display:block;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size:17px;
+    color:var(--ink);
+    margin-bottom:6px;
+    font-weight:700;
+  }
+  .empty p, .notice p{ margin:0; font-size:13.5px; line-height:1.5; }
+  .notice .code{
+    display:block;
+    font-size:14px;
+    color:var(--ink);
+    margin-bottom:8px;
+    letter-spacing:0.5px;
+  }
+
+  .list-head{
+    padding:12px 16px 10px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .result .row{
+    width:100%;
+    flex:none;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    text-align:left;
+    padding:13px 16px;
+    background:transparent;
+    color:var(--ink);
+    border:none;
+    border-top:1px solid var(--line);
+    border-radius:0;
+    font-weight:400;
+  }
+  .result .row:active{ background:var(--paper); transform:none; }
+  .row-main{ flex:1; min-width:0; }
+  .row-title{
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size:16px;
+    font-weight:700;
+    line-height:1.25;
+  }
+  .row-author{
+    display:block;
+    margin-top:3px;
+    font-size:12.5px;
+    color:var(--muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .row-price{
+    flex:0 0 auto;
+    text-align:right;
+    font-size:16px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .row-price small{
+    display:block;
+    margin-top:2px;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--muted);
+  }
+
+  .book{ padding:20px 20px 18px; }
+  .result button.back{
+    flex:none;
+    display:inline-flex;
+    width:auto;
+    padding:6px 10px 6px 2px;
+    margin:-8px 0 8px -2px;
+    background:none;
+    border:none;
+    border-radius:10px;
+    color:var(--muted);
+    font-size:13px;
+    font-weight:600;
+    gap:4px;
+  }
+  .result button.back .icon{ width:15px; height:15px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .chip{
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:20px;
+    background:var(--chip);
+    color:var(--soft);
+  }
+  .chip.off{ background:var(--ink); color:#fff; font-weight:700; }
+  .book-title{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size:23px;
+    line-height:1.2;
+    margin:0 0 4px;
+    font-weight:700;
+    overflow-wrap:anywhere;
+  }
+  .book-sub{
+    font-size:13.5px;
+    line-height:1.4;
+    color:var(--muted);
+    margin:0 0 8px;
+    font-style:italic;
+  }
+  .book-author{
+    font-size:14px;
+    color:var(--soft);
+    margin:0;
+  }
+  .price-row{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:14px;
+    border-top:1px solid var(--line);
+    margin-top:16px;
+    padding-top:14px;
+  }
+  .price-old{
+    display:block;
+    font-size:13.5px;
+    color:var(--muted);
+    text-decoration:line-through;
+    margin-bottom:4px;
+  }
+  .price-new{
+    display:block;
+    font-size:36px;
+    font-weight:700;
+    letter-spacing:-0.5px;
+    line-height:1;
+  }
+  .stock{
+    text-align:right;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.35;
+  }
+  .stock b{ display:block; font-size:18px; color:var(--ink); }
+  .resumo{
+    border-top:1px solid var(--line);
+    margin-top:16px;
+    padding-top:12px;
+    font-size:13.5px;
+    line-height:1.55;
+    color:var(--soft);
+  }
+  .resumo .resumo-label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:4px;
+    font-weight:600;
+  }
+
+  .footer{
+    width:100%;
+    max-width:520px;
+    padding:6px 20px calc(24px + env(safe-area-inset-bottom));
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .footer .line{ flex:1; height:1px; background:var(--line); }
+  .footer span{
+    font-size:10px;
+    letter-spacing:2px;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <img class="logo" src="logo-icon.png" alt="Citadel Grupo Editorial" width="49" height="40">
+  <div class="titles">
+    <h1>Consulta de Preço</h1>
+    <span>Feira do Livro</span>
+  </div>
+  <button id="btn-menu" aria-expanded="false" aria-controls="menu-panel" aria-label="Abrir menu">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+</header>
+
+<div class="menu-panel" id="menu-panel" hidden>
+  <div class="menu-card">
+    <div class="file-status" id="file-status">Carregando…</div>
+    <div class="btnrow">
+      <button id="btn-reload" class="secondary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>
+        Atualizar remessas
+      </button>
+    </div>
+  </div>
+  <div class="menu-card">
+    <div class="file-status" id="resumos-status">Carregando…</div>
+    <div class="btnrow">
+      <button id="btn-load-resumos" class="secondary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 6.5a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>
+        Carregar resumos
+      </button>
+      <button id="btn-remove-resumos" class="secondary" style="display:none;">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+        Remover
+      </button>
+    </div>
+  </div>
+  <div class="menu-card">
+    <div class="file-status">Diagnóstico</div>
+    <button id="btn-debug" class="secondary">Ver o que foi carregado</button>
+    <pre id="debug-output" style="display:none; white-space:pre-wrap; word-break:break-word; font-size:11.5px; line-height:1.5; margin:10px 0 0; max-height:240px; overflow:auto; background:var(--paper); border-radius:10px; padding:10px;"></pre>
+  </div>
+</div>
+<input type="file" id="resumos-file-input" accept=".json,application/json" style="display:none">
+
+<main class="stage">
+
+  <div id="reader-wrap">
+    <div id="reader"></div>
+    <div class="scan-frame" id="scan-frame"><i></i><i></i><i></i><i></i></div>
+    <button id="btn-flip" class="cam-overlay-btn" aria-label="Trocar câmera">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>
+    </button>
+    <button id="btn-torch" class="cam-overlay-btn" aria-label="Lanterna">
+      <svg class="icon filled" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+    </button>
+  </div>
+
+  <div class="status" id="status"><span class="dot"></span><span id="status-text"></span></div>
+
+  <div class="aviso" id="aviso-catalogo" hidden>Não consegui ler as remessas do GitHub. Este é o catálogo de reserva e os preços podem estar desatualizados.</div>
+
+  <div class="search" role="search">
+    <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <input id="busca" type="search" placeholder="Título, autor ou gênero" enterkeyhint="search" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Buscar livro por título, autor ou gênero">
+    <button id="btn-clear" class="clear" type="button" aria-label="Limpar busca" hidden>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <button id="btn-search" type="button">Buscar</button>
+  </div>
+
+  <div class="result" id="result" aria-live="polite">
+    <div class="empty">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 5.2C10.2 4 7.8 3.5 5 3.5c-0.8 0-1.6 0.05-2.5 0.2v13.6c0.9-0.15 1.7-0.2 2.5-0.2 2.8 0 5.2 0.5 7 1.7 1.8-1.2 4.2-1.7 7-1.7 0.8 0 1.6 0.05 2.5 0.2V3.7c-0.9-0.15-1.7-0.2-2.5-0.2-2.8 0-5.2 0.5-7 1.7z"/><path d="M12 5.2v13.6"/></svg>
+      <b>Nenhum livro consultado</b>
+      <p>Aponte a câmera para o código de barras ou busque pelo título ou autor.</p>
+    </div>
+  </div>
+
+  <section class="cam-controls" aria-label="Controles da câmera">
+    <div class="camera-card">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/></svg>
+      <div class="cam-field">
+        <span class="cam-label">Câmera</span>
+        <select id="camera-list"><option value="">Carregando câmeras…</option></select>
+      </div>
+      <svg class="chevron icon" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="btnrow cam-actions">
+      <button id="btn-start">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>
+        Ligar
+      </button>
+      <button id="btn-stop" class="secondary">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="7" y="5" width="3.4" height="14" rx="1"/><rect x="13.6" y="5" width="3.4" height="14" rx="1"/></svg>
+        Pausar
+      </button>
+      <button id="btn-photo" class="secondary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.4"/></svg>
+        Foto
+      </button>
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment">
+  </section>
+
+</main>
+
+<div class="footer">
+  <div class="line"></div>
+  <span>CITADEL GRUPO EDITORIAL</span>
+  <div class="line"></div>
+</div>
+
+<script>
+const CATALOGO_PADRAO = {"9788568014004":{"t":"Mais Esperto que o Diabo","s":"","a":"NAPOLEON HILL","g":"Auto-ajuda","p":49.9,"pl":29.94,"d":40,"q":50},"9788568014264":{"t":"O Manuscrito Original","s":"","a":"NAPOLEON HILL","g":"Auto-ajuda","p":89.9,"pl":53.94,"d":40,"q":5},"9788568014547":{"t":"Quem Pensa Enriquece - O Legado","s":"","a":"NAPOLEON HILL","g":"Auto-ajuda","p":51.9,"pl":31.14,"d":40,"q":20},"9788568014325":{"t":"Quebrando O Habito De Ser Voce Mesmo","s":"","a":"DR. JOE DISPENZA","g":"Auto-ajuda","p":51.9,"pl":31.14,"d":40,"q":20},"9788568014639":{"t":"Penso E Acontece","s":"","a":"BOB PROCTOR","g":"","p":59.9,"pl":35.94,"d":40,"q":5},"9788568014455":{"t":"Em Busca De Nos Mesmos","s":"","a":"CLOVIS DE BARROS FILHO (Autor)","g":"","p":51.9,"pl":31.14,"d":40,"q":5},"9786587885049":{"t":"Um Dia Sem Reclamar","s":"","a":"MARCELO CAMPOS GALUPPO (autor)","g":"Auto-ajuda","p":49.9,"pl":29.94,"d":40,"q":10},"9786587885001":{"t":"Quem Pensa Enriquece – A Edição Oficial E Original De 1937","s":"","a":"NAPOLEON HILL","g":"","p":51.9,"pl":31.14,"d":40,"q":10},"9786550470302":{"t":"Pense Como Um Imperador","s":"","a":"DONALD ROBERTSON","g":"","p":56.9,"pl":34.14,"d":40,"q":5},"9786587885100":{"t":"Kit Luxo Pockets  - Napoleon Hill Diamantes De Bolso","s":"","a":"NAPOLEON HILL","g":"Humanidades","p":99.9,"pl":59.94,"d":40,"q":10},"9786550470517":{"t":"Como Se Tornar Sobrenatural","s":"","a":"DR. JOE DISPENZA","g":"Auto-ajuda","p":57.9,"pl":34.74,"d":40,"q":20},"9786587885308":{"t":"Anne De Green Gables","s":"","a":"Lucy Maud Montgomery","g":"","p":49.9,"pl":29.94,"d":40,"q":10},"9786587885315":{"t":"Anne De Avonlea","s":"","a":"Lucy Maud Montgomery","g":"","p":49.9,"pl":29.94,"d":40,"q":5},"9786587885322":{"t":"Anne Da Ilha","s":"","a":"Lucy Maud Montgomery","g":"","p":49.9,"pl":29.94,"d":40,"q":5},"9786587885513":{"t":"Razão E Sensibilidade","s":"","a":"Jane Austen","g":"","p":46.9,"pl":28.14,"d":40,"q":10},"9786550471361":{"t":"Por Que Seu Filho Não Aprende Matematica","s":"","a":"ANDRE SANTOLERI VILLA BARBEIRO","g":"","p":54.9,"pl":32.94,"d":40,"q":5},"9786587885643":{"t":"Persuasão","s":"","a":"Jane Austen","g":"","p":46.9,"pl":28.14,"d":40,"q":10},"9786550471354":{"t":"Orgulho E Preconceito","s":"","a":"Jane Austen","g":"","p":46.9,"pl":28.14,"d":40,"q":10},"9786550471255":{"t":"OBSESSÃO PELO CLIENTE","s":"Working Backwards","a":"St. Martins Press LLC","g":"Auto-ajuda","p":68.9,"pl":41.34,"d":40,"q":10},"9786550471378":{"t":"O Senhor Da Chuva","s":"","a":"ANDRE VIANCO PRODUÇOES ","g":"","p":54.9,"pl":32.94,"d":40,"q":10},"9786587885537":{"t":"O Morro Dos Ventos Uivantes","s":"","a":"EMILY BRONTE","g":"","p":44.9,"pl":26.94,"d":40,"q":5},"9786587885339":{"t":"Meditações","s":"","a":"MARCO AURELIO","g":"","p":54.9,"pl":32.94,"d":40,"q":10},"9786587885346":{"t":"George Orwel 1984 + A Revolução Dos Bichos","s":"","a":"GEORGE ORWELL","g":"","p":64.9,"pl":38.94,"d":40,"q":20},"9786550471408":{"t":"Epaminondas","s":"O Gato Explicador","a":"CLOVIS DE BARROS FILHO (Autor)","g":"","p":56.9,"pl":34.14,"d":40,"q":5},"9786550471415":{"t":"Em Mim Basta","s":":  O Poder De Pular Fora Quando Nada Mais Faz Sentido","a":"WILLIAM SANCHES DE LIMA (Autor)","g":"Auto-ajuda","p":54.9,"pl":32.94,"d":40,"q":5},"9786550471071":{"t":"Bento","s":"","a":"ANDRE VIANCO PRODUÇOES ","g":"","p":54.9,"pl":32.94,"d":40,"q":5},"9786550471170":{"t":"Ansiedade","s":"O Fim Da Escravidão","a":"JULIANO PIMENTEL CORREA SANTOS (Autor)","g":"","p":56.9,"pl":34.14,"d":40,"q":5},"9786587885568":{"t":"Anne De Windy Poplars","s":"","a":"Lucy Maud Montgomery","g":"","p":49.9,"pl":29.94,"d":40,"q":5},"9786550471231":{"t":"A Ciencia De Ficar Rico","s":"","a":"WALLACE D WATTLES","g":"","p":49.9,"pl":29.94,"d":40,"q":5},"9786587885735":{"t":"1984","s":"","a":"GEORGE ORWELL","g":"","p":46.9,"pl":28.14,"d":40,"q":10},"9786550474294":{"t":"Vidas Secas + S. Bernardo","s":"","a":"Graciliano Ramos","g":"Gastronomia","p":69.9,"pl":41.94,"d":40,"q":10},"9786550472474":{"t":"Umbanda para iniciantes","s":"","a":"RODRIGO QUEIROZ (Autor)","g":"Gastronomia","p":52.9,"pl":31.74,"d":40,"q":10},"9786550475000":{"t":"Turma da Mônica e o Mistério dos Superpoderes Mentais","s":"","a":"WILLIAM SANCHES DE LIMA (Autor)","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":5},"9786550472689":{"t":"Projeto de vida","s":"Caminhos para uma vida que valha a pena","a":"CLOVIS DE BARROS FILHO (Autor)","g":"Auto-ajuda","p":59.9,"pl":35.94,"d":40,"q":10},"9786550476472":{"t":"Português para não pagar mico","s":"","a":"Autor","g":"Educação","p":59.9,"pl":35.94,"d":40,"q":10},"9786550475918":{"t":"Pais que educam, filhos que prosperam","s":"","a":"EDGAR ASSIS GOMES DE ABREU (Autor)","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":5},"9786550472511":{"t":"Padrões de alta performance","s":"","a":"NAPOLEON HILL","g":"Humanidades","p":59.9,"pl":35.94,"d":40,"q":10},"9786550474652":{"t":"O pequeno príncipe","s":"","a":"Antoine de Saint-Exupéry","g":"Literatura estrangeira","p":52.9,"pl":31.74,"d":40,"q":5},"9786550474553":{"t":"O Manuscrito original 365 dias","s":"As leis do triunfo e do sucesso de Napoleon Hill","a":"NAPOLEON HILL","g":"Auto-ajuda","p":89.9,"pl":53.94,"d":40,"q":5},"9786550471651":{"t":"O Livro Dos Cinco Aneis","s":"","a":"Miyamoto Musashi","g":"","p":49.9,"pl":29.94,"d":40,"q":10},"9786550474461":{"t":"O homem que comprou o tempo","s":"","a":"THIAGO NIGRO (Invalido)","g":"Auto-ajuda","p":64.9,"pl":38.94,"d":40,"q":10},"9786550475833":{"t":"Não se trata de dinheiro","s":"Trata-se de viver com propósito","a":"BOB PROCTOR","g":"Auto-ajuda","p":64.9,"pl":38.94,"d":40,"q":5},"9786550475611":{"t":"Não é sorte","s":"Como criar soluções estratégicas para problemas sem saída, tanto nos negócios como na vida pessoal","a":"Eliyahu M. Goldratt","g":"Negócios e Economia","p":69.9,"pl":41.94,"d":40,"q":5},"9786550475239":{"t":"Mais esperto que o diabo 2","s":"O plano de ação: 20+1 dias para sair da alienação","a":"NAPOLEON HILL","g":"Auto-ajuda","p":64.9,"pl":38.94,"d":40,"q":10},"9786550475338":{"t":"Machado de Assis 2 em 1: Memórias póstumas de Brás Cubas + Dom Casmurro","s":"","a":"Machado de Assis","g":"Ficção","p":69.9,"pl":41.94,"d":40,"q":10},"9786550475857":{"t":"Ilíada & Odisseia (Série Clóvis explica)","s":"Reflexões sobre as obras-primas de Homero","a":"CLOVIS DE BARROS FILHO (Autor)","g":"Filosofia","p":64.9,"pl":38.94,"d":40,"q":10},"9786550476144":{"t":"Exorcista – Os arquivos secretos","s":"Histórias reais sobre o demônio e como combatê-lo","a":"Padre Carlos Martins - Riff","g":"Religião","p":69.9,"pl":41.94,"d":40,"q":5},"9786550475406":{"t":"Entidades da umbanda","s":"Segredos revelados das forças ancestrais","a":"RODRIGO QUEIROZ (Autor)","g":"Religião","p":69.9,"pl":41.94,"d":40,"q":5},"9786550474799":{"t":"Em nome do povo","s":"Como o casamento entre Estado e moeda te deixa mais pobre","a":"BRUNO PERINI(Autor)","g":"Auto-ajuda","p":59.9,"pl":35.94,"d":40,"q":5},"9786550472412":{"t":"Como aumentar a capacidade do seu cérebro","s":"","a":"DR. JOE DISPENZA","g":"Auto-ajuda","p":79.9,"pl":47.94,"d":40,"q":10},"9786550476557":{"t":"Colorindo com Romero Britto","s":"","a":"ART 800 LLC (Romero Britto)","g":"Infanto-juvenil","p":49.9,"pl":29.94,"d":40,"q":5},"9786550472009":{"t":"Castelo Interior: ou moradas","s":"","a":"Santa Tereza D Avila","g":"Auto-ajuda","p":59.9,"pl":35.94,"d":40,"q":5},"9786550474539":{"t":"Cabeça de campeão","s":"Adote o mapa mental dos campeões e entenda a psicologia por trás dos resultados de alta performance","a":"François Ducasse","g":"Auto-ajuda","p":59.9,"pl":35.94,"d":40,"q":10},"9786550471774":{"t":"As margens do Ipiranga","s":"A viagem da Independência — a jornada de d. Pedro, do Rio de Janeiro a São Paulo, em agosto e setemb","a":"RODRIGO TRESPACH","g":"Saúde, esporte e lazer","p":56.9,"pl":34.14,"d":40,"q":10},"9786550472429":{"t":"Apaixone-se pelo problema, não pela solução","s":"","a":"Uri Levine","g":"Auto-ajuda","p":76.9,"pl":46.14,"d":40,"q":10},"9786550476533":{"t":"Ao meu redor","s":"","a":"ANDRE VIANCO PRODUÇOES ","g":"Literatura nacional","p":69.9,"pl":41.94,"d":40,"q":10},"9786550472320":{"t":"A Noite Maldita","s":"","a":"ANDRE VIANCO PRODUÇOES ","g":"Saúde, esporte e lazer","p":74.9,"pl":44.94,"d":40,"q":5},"9786550474614":{"t":"A meta","s":"Um processo de melhoria contínua (Edição comemorativa de 40 anos)","a":"Eliyahu M. Goldratt","g":"Negócios e Economia","p":74.9,"pl":44.94,"d":40,"q":10},"9786550472337":{"t":"À deriva","s":"","a":"ANDRE VIANCO PRODUÇOES ","g":"Saúde, esporte e lazer","p":69.9,"pl":41.94,"d":40,"q":5},"9786550471903":{"t":"A Bruxa Tereza","s":"","a":"ANDRE VIANCO PRODUÇOES ","g":"Saúde, esporte e lazer","p":56.9,"pl":34.14,"d":40,"q":5},"9786550472665":{"t":"1824","s":"","a":"RODRIGO TRESPACH","g":"Gastronomia","p":64.9,"pl":38.94,"d":40,"q":10},"9786550472672":{"t":"18 princípios para você evoluir","s":"","a":"CHARLES DAVID MENDLOWICZ MAULLER (Autor)","g":"Auto-ajuda","p":59.9,"pl":35.94,"d":40,"q":10},"9786550477424":{"t":"O trabalho devolve","s":"15 minutos diários de sabedoria para mudar sua vida","a":"JOEL JOTA (Autor)","g":"Auto-ajuda","p":89.9,"pl":53.94,"d":40,"q":10},"9786550478216":{"t":"O simples vence","s":"Foco e o que não fazer se você quiser ser um empreendedor de sucesso","a":"Uri Levine","g":"Auto-ajuda","p":64.9,"pl":38.94,"d":40,"q":10},"9786550477950":{"t":"O império ameaçado","s":"","a":"Marcos Valer (Autor)","g":"Literatura nacional","p":79.9,"pl":47.94,"d":40,"q":15},"9786550478278":{"t":"O fim do sofrimento emocional","s":"Para quem cansou de fingir que está tudo bem e quer começar a se curar de verdade","a":"WILLIAM SANCHES DE LIMA (Autor)","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":20},"9786550476205":{"t":"O coração ensinável","s":"Uma jornada de transformação interior para crescer na vida e nos negócios","a":"João Kepler Braga (Autor)","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":10},"9786550477110":{"t":"O apagamento","s":"","a":"Eslen Delanogare (Autora)","g":"Ficção","p":74.9,"pl":44.94,"d":40,"q":5},"9786550478650":{"t":"Noites brancas","s":"","a":"Temporalis","g":"Literatura estrangeira","p":49.9,"pl":29.94,"d":40,"q":50},"9786550477851":{"t":"Mentalidade de alto nível","s":"Pense grande sempre","a":"VINICIUS CASTILHOS IRACET ","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":10},"9786550477639":{"t":"Inteligência pragmática","s":"A habilidade humana que a IA nunca substituirá - Como transformar objetivos em realidade","a":"Maximilian Rivera Peters (Autor)","g":"Auto-ajuda","p":89.9,"pl":53.94,"d":40,"q":10},"9786550478674":{"t":"Hotel Cativeiro","s":"","a":"Vanessa Mendes Lima Dioguardi (Autora)","g":"Literatura nacional","p":74.9,"pl":44.94,"d":40,"q":20},"9786550476878":{"t":"Happy hour é na segunda","s":"Porque na sexta fica tarde demais","a":"CLOVIS DE BARROS FILHO (Autor)","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":5},"9786550478612":{"t":"Fé e esperança para cada dia (2027)","s":"Reflexões diárias para inspirar sua jornada espiritual","a":"TIKVAH TREINAMENTO E CONSULTORIA (Flavio Valvassoura) Autor","g":"Religião","p":84.9,"pl":50.94,"d":40,"q":20},"9786550477134":{"t":"Café do Chico não costuma faiá!","s":"","a":"JULIANO MATEUS POZATI (autor)","g":"Auto-ajuda","p":89.9,"pl":53.94,"d":40,"q":5},"9786550477615":{"t":"Café com Jesus 3","s":"Com a bênção de Deus Pai para uma nova estação","a":"VINICIUS CASTILHOS IRACET ","g":"Religião","p":89.9,"pl":53.94,"d":40,"q":5},"9786550477462":{"t":"Barbacena","s":"Mistérios, segredos e conspirações a bordo do navio de guerra mais temido dos mares","a":"Vice-Almirante J.C.G. Caminha","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":5},"9786550477349":{"t":"As regras do fluxo de Goldratt","s":"Os princípios de gestão de negócios do mega-seller","a":"Efrat Goldratt-Ashlag (Autor)","g":"Negócios e Economia","p":64.9,"pl":38.94,"d":40,"q":10},"9786550477752":{"t":"ARCA","s":"A filosofia de investimentos que bateu o mercado sem tentar prever o futuro","a":"THIAGO LOKTUS NIGRO (Autor)","g":"Auto-ajuda","p":69.9,"pl":41.94,"d":40,"q":20},"9786550478636":{"t":"A metamorfose","s":"","a":"Temporalis","g":"Literatura estrangeira","p":49.9,"pl":29.94,"d":40,"q":50},"9786550478377":{"t":"1826","s":"A história dos primeiros imigrantes alemães no Litoral Norte gaúcho, a caravana pioneira, a comunida","a":"RODRIGO TRESPACH","g":"História","p":79.9,"pl":47.94,"d":40,"q":20}};
+
+// --- Limpeza de restos do modo antigo (upload manual e senha) ---
+// Se este aparelho já usou o upload manual, o arquivo salvo ficaria por cima do GitHub.
+['consultaPreco_remessaCustom', 'consultaPreco_remessaUrlCache'].forEach(k => {
+  try{ localStorage.removeItem(k); }catch(err){ /* ignora */ }
+});
+try{ sessionStorage.removeItem('consultaPreco_isAdmin'); }catch(err){ /* ignora */ }
+
+// --- Remessas: lidas direto do GitHub (mesma pasta do site) ---
+// Arquivos aceitos: remessa.json, remessa1.json, remessa2.json … remessa10.json.
+// Os que não existirem são simplesmente ignorados. Pra trocar/adicionar remessa,
+// é só publicar o arquivo no repositório.
+const REMESSA_ARQUIVOS = ['remessa.json'].concat(
+  Array.from({ length: 10 }, (_, i) => `remessa${i + 1}.json`)
+);
+
+// Converte o JSON de remessa (formato "remessa: [{ itens: [{ produto, qtde, ... }] }]")
+// no formato compacto usado pelo app: { codigoBarras: {t,s,a,g,e,p,pl,d,q} }
+function remessaJsonToCatalogo(data){
+  const catalogo = {};
+  const notas = Array.isArray(data.remessa) ? data.remessa : (data.remessa ? [data.remessa] : []);
+  notas.forEach(nota => {
+    (nota.itens || []).forEach(item => {
+      const p = item.produto || {};
+      const codigo = String(p.codigoBarras || p.codigoIsbn || p.codigoOriginal || '').trim();
+      if(!codigo) return;
+      const qtde = Number(item.qtde) || 0;
+      if(catalogo[codigo]){
+        catalogo[codigo].q += qtde; // mesmo código em mais de um item/nota: soma o estoque
+      }else{
+        catalogo[codigo] = {
+          t: p.titulo || '',
+          s: p.subtitulo || '',
+          a: p.autorNome || '',
+          g: p.generoDesc || '',
+          e: p.editoraNome || '',
+          p: Number(p.preco) || Number(item.valorUnitario) || 0,
+          pl: Number(item.valorUnitarioLiquido) || Number(p.preco) || 0,
+          d: Number(item.percDesconto) || 0,
+          q: qtde
+        };
+      }
+    });
+  });
+  return catalogo;
+}
+
+// Junta várias remessas: o estoque soma; preço e dados vêm da remessa mais nova
+// (a de número maior), então dá pra corrigir um preço republicando o livro numa remessa nova.
+function mesclarCatalogo(destino, origem){
+  Object.keys(origem).forEach(cod => {
+    const novo = origem[cod];
+    const atual = destino[cod];
+    destino[cod] = atual ? Object.assign({}, novo, { q: atual.q + novo.q }) : Object.assign({}, novo);
+  });
+}
+
+let CATALOGO = CATALOGO_PADRAO;
+let CATALOGO_SOURCE = 'carregando'; // 'carregando' | 'github' | 'padrao'
+let REMESSAS_INFO = [];
+let INDICE = [];
+let remessasPromise = null;
+
+async function carregarRemessas(){
+  const respostas = await Promise.all(REMESSA_ARQUIVOS.map(async (nome) => {
+    try{
+      const resp = await fetch('./' + nome, { cache: 'no-store' });
+      if(resp.status === 404) return { nome, estado: 'ausente' };
+      if(!resp.ok) return { nome, estado: 'erro', detalhe: 'HTTP ' + resp.status };
+      // hospedagens que devolvem a página inicial no lugar de um 404
+      if(/text\/html/i.test(resp.headers.get('content-type') || '')) return { nome, estado: 'ausente' };
+      let data;
+      try{ data = await resp.json(); }
+      catch(err){ return { nome, estado: 'erro', detalhe: 'JSON inválido' }; }
+      const catalogo = remessaJsonToCatalogo(data || {});
+      const titulos = Object.keys(catalogo).length;
+      if(!titulos) return { nome, estado: 'erro', detalhe: 'sem itens de remessa' };
+      return { nome, estado: 'ok', catalogo, titulos };
+    }catch(err){
+      return { nome, estado: 'erro', detalhe: 'sem conexão' };
+    }
+  }));
+
+  REMESSAS_INFO = respostas;
+  const lidas = respostas.filter(r => r.estado === 'ok');
+  if(lidas.length){
+    const total = {};
+    lidas.forEach(r => mesclarCatalogo(total, r.catalogo));
+    CATALOGO = total;
+    CATALOGO_SOURCE = 'github';
+  }else{
+    CATALOGO = CATALOGO_PADRAO;
+    CATALOGO_SOURCE = 'padrao';
+  }
+  construirIndice();
+  atualizarStatusRemessas();
+}
+
+// --- Descoberta automática de arquivos publicados no repositório do GitHub ---
+// Assim o app reconhece a remessa (e o guia de atendimento) mesmo que o
+// arquivo não se chame exatamente "remessa.json"/"resumos.json" — por
+// exemplo, se você mantiver o nome original com data, tipo
+// "14-09-2026_RemessaFeira.json" ou "guia_atendimento_439_titulos.json".
+
+function detectarRepoGitHubPages(){
+  try{
+    const host = location.hostname; // ex: paocomovobr.github.io
+    const owner = host.split('.')[0];
+    const repo = location.pathname.split('/').filter(Boolean)[0] || '';
+    if(host.endsWith('.github.io') && owner && repo) return { owner, repo };
+  }catch(err){ /* ignora */ }
+  return null;
+}
+// Se o site não estiver em <owner>.github.io/<repo>/ (ex: teste local), usa isso:
+const REPO_FALLBACK = { owner: 'paocomovobr', repo: 'emteste7' };
+
+// Tenta ler uma data no começo do nome do arquivo (formato DD-MM-AAAA) pra,
+// quando houver mais de um arquivo candidato, priorizar o mais recente.
+function extrairDataDoNome(nome){
+  const m = String(nome).match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if(!m) return 0;
+  const [, d, mo, y] = m;
+  return new Date(`${y}-${mo}-${d}`).getTime() || 0;
+}
+
+let _listaJsonRepoCache = null;
+async function listarArquivosJsonDoRepo(){
+  if(_listaJsonRepoCache) return _listaJsonRepoCache; // 1 consulta à API por sessão é suficiente
+  try{
+    const { owner, repo } = detectarRepoGitHubPages() || REPO_FALLBACK;
+    const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/`, { cache: 'no-store' });
+    if(!resp.ok) throw new Error('não deu pra listar os arquivos do repositório');
+    const arquivos = await resp.json();
+    _listaJsonRepoCache = (Array.isArray(arquivos) ? arquivos : [])
+      .filter(f => f.type === 'file' && /\.json$/i.test(f.name));
+  }catch(err){
+    _listaJsonRepoCache = [];
+  }
+  return _listaJsonRepoCache;
+}
+
+// Acha e valida um arquivo publicado no repositório, tentando nesta ordem:
+// 1) o mesmo arquivo que funcionou da última vez (evita gastar a cota da API do GitHub)
+// 2) um nome fixo, se você preferir manter esse nome (mais rápido)
+// 3) qualquer .json na raiz do repositório, do mais recente (pela data no nome) pro mais antigo,
+//    testando o conteúdo de cada um até achar um que "bate" com o validador
+async function encontrarArquivoValido({ nomeFixo, ignorarNomes, validar, cacheKey }){
+  const lerCache = () => { try{ return JSON.parse(localStorage.getItem(cacheKey) || 'null'); }catch(e){ return null; } };
+  const salvarCache = (info) => { try{ localStorage.setItem(cacheKey, JSON.stringify(info)); }catch(e){ /* ignora */ } };
+
+  const tentar = async (url, nome) => {
+    try{
+      const resp = await fetch(url, { cache: 'no-store' });
+      if(!resp.ok) return null;
+      const data = await resp.json();
+      const resultado = validar(data);
+      if(resultado){ salvarCache({ url, nome }); return { resultado, nome, url }; }
+    }catch(err){ /* tenta o próximo */ }
+    return null;
+  };
+
+  const memorizado = lerCache();
+  if(memorizado && memorizado.url){
+    const ok = await tentar(memorizado.url, memorizado.nome);
+    if(ok) return ok;
+  }
+  if(nomeFixo){
+    const ok = await tentar('./' + nomeFixo, nomeFixo);
+    if(ok) return ok;
+  }
+  const arquivos = await listarArquivosJsonDoRepo();
+  const candidatos = arquivos
+    .filter(f => !ignorarNomes.has(f.name.toLowerCase()) && !/^remessa\d*\.json$/i.test(f.name))
+    .sort((a, b) => extrairDataDoNome(b.name) - extrairDataDoNome(a.name));
+  for(const candidato of candidatos){
+    const ok = await tentar(candidato.download_url, candidato.name);
+    if(ok) return ok;
+  }
+  return null;
+}
+
+// --- Persistência do arquivo de RESUMOS enviado pelo usuário (localStorage) ---
+const RESUMOS_STORAGE_KEY = 'consultaPreco_resumosCustom';
+
+function loadCustomResumos(){
+  try{
+    const raw = localStorage.getItem(RESUMOS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(err){
+    return null;
+  }
+}
+
+function saveCustomResumos(fileName, resumos){
+  try{
+    localStorage.setItem(RESUMOS_STORAGE_KEY, JSON.stringify({ fileName, resumos, savedAt: Date.now() }));
+    return true;
+  }catch(err){
+    return false;
+  }
+}
+
+function clearCustomResumos(){
+  localStorage.removeItem(RESUMOS_STORAGE_KEY);
+}
+
+// Converte o JSON de resumos pro formato usado pelo app: { isbn: "texto do resumo" }.
+// Aceita tanto o formato simples "livros: [{ isbn, resumo }]" quanto o guia de
+// atendimento "titulos: [{ isbn, o_que_falar_para_o_cliente, do_que_se_trata }]".
+function resumosJsonToMapa(data){
+  const mapa = {};
+  const lista = Array.isArray(data.livros) ? data.livros
+    : Array.isArray(data.titulos) ? data.titulos
+    : Array.isArray(data) ? data
+    : [];
+  lista.forEach(l => {
+    const codigo = String(l.isbn || l.codigoBarras || l.codigoIsbn || '').trim();
+    const resumo = String(l.resumo || l.o_que_falar_para_o_cliente || l.do_que_se_trata || '').trim();
+    if(codigo && resumo){ mapa[codigo] = resumo; }
+  });
+  return mapa;
+}
+
+let RESUMOS_CUSTOM = {};
+let RESUMOS_SOURCE = 'nenhum'; // 'nenhum' | 'repo' | 'manual'
+let RESUMOS_REPO_NOME = '';
+(function initResumos(){
+  const saved = loadCustomResumos();
+  if(saved && saved.resumos){ RESUMOS_CUSTOM = saved.resumos; RESUMOS_SOURCE = 'manual'; }
+})();
+
+// Mesma ideia da remessa: reconhece o guia de resumos/atendimento publicado no
+// repositório mesmo com outro nome de arquivo (ex: "guia_atendimento_439_titulos.json").
+async function loadResumosDoRepo(){
+  if(RESUMOS_SOURCE === 'manual') return;
+  const achado = await encontrarArquivoValido({
+    nomeFixo: 'resumos.json',
+    ignorarNomes: new Set(['manifest.json']),
+    validar: (data) => { const m = resumosJsonToMapa(data); return Object.keys(m).length ? m : null; },
+    cacheKey: 'consultaPreco_resumosUrlCache'
+  });
+  if(achado){
+    RESUMOS_CUSTOM = achado.resultado;
+    RESUMOS_SOURCE = 'repo';
+    RESUMOS_REPO_NOME = achado.nome;
+  }
+  updateResumosStatusUI();
+}
+
+const els = {
+  status: document.getElementById('status-text'),
+  result: document.getElementById('result'),
+  busca: document.getElementById('busca'),
+  btnBuscar: document.getElementById('btn-search'),
+  btnClear: document.getElementById('btn-clear'),
+  aviso: document.getElementById('aviso-catalogo'),
+  cameraList: document.getElementById('camera-list'),
+  fileStatus: document.getElementById('file-status'),
+  resumosStatus: document.getElementById('resumos-status'),
+  btnRemoveResumos: document.getElementById('btn-remove-resumos'),
+};
+const HTML_VAZIO = els.result.innerHTML;
+
+// --- Utilidades de texto ---
+function formatBRL(v){
+  return Number(v || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtPct(v){
+  return String(Math.round(Number(v) * 10) / 10).replace('.', ',');
+}
+
+function escapeHtml(str){
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const PALAVRAS_MINUSCULAS = new Set(['de','da','do','das','dos','e','em','na','no','nas','nos','a','o','as','os','com','por','para','pelo','pela','ao','ou','di','du','del','van','von','la','le']);
+function titulizar(s){
+  return s.toLowerCase().split(' ').map((w, i) =>
+    (i > 0 && PALAVRAS_MINUSCULAS.has(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1)
+  ).join(' ');
+}
+function estaTodoEmMaiusculas(s){
+  return s === s.toUpperCase() && /[A-ZÀ-Ý]/.test(s);
+}
+
+// Nomes de autor vêm do sistema como "NAPOLEON HILL", "CLOVIS DE BARROS FILHO (Autor)" etc.
+function limparAutor(a){
+  let s = String(a || '').replace(/\s*\((autor|autora|invalido|inválido)\)\s*/gi, ' ').replace(/\s+/g, ' ').trim();
+  if(/^autora?$/i.test(s)) return '';
+  if(estaTodoEmMaiusculas(s)) s = titulizar(s);
+  return s;
+}
+function tituloBonito(t){
+  const s = String(t || '').replace(/\s+/g, ' ').trim();
+  return (/\s/.test(s) && estaTodoEmMaiusculas(s)) ? titulizar(s) : s;
+}
+function limparSub(s){
+  return String(s || '').replace(/^[\s:–—-]+/, '').replace(/\s+/g, ' ').trim();
+}
+
+// --- Status das remessas (menu) ---
+function atualizarStatusRemessas(){
+  const lidas = REMESSAS_INFO.filter(r => r.estado === 'ok');
+  const erros = REMESSAS_INFO.filter(r => r.estado === 'erro');
+  let html;
+  if(CATALOGO_SOURCE === 'github'){
+    const lista = lidas.map(r => `${escapeHtml(r.nome)} (${r.titulos})`).join(', ');
+    html = `<strong>${lidas.length} ${lidas.length === 1 ? 'remessa lida' : 'remessas lidas'}</strong> do GitHub — ${Object.keys(CATALOGO).length} título(s) no total.<br>${lista}`;
+  }else if(CATALOGO_SOURCE === 'padrao'){
+    html = 'Nenhuma remessa encontrada no GitHub (remessa.json até remessa10.json). Usando o catálogo de reserva embutido.';
+  }else{
+    html = 'Carregando remessas…';
+  }
+  if(erros.length){
+    html += `<br><span class="err">Com problema: ${erros.map(r => `${escapeHtml(r.nome)} (${escapeHtml(r.detalhe)})`).join(', ')}</span>`;
+  }
+  els.fileStatus.innerHTML = html;
+  els.aviso.hidden = CATALOGO_SOURCE !== 'padrao';
+}
+atualizarStatusRemessas();
+
+// --- Busca por título, autor, gênero, editora ou código ---
+function norm(s){
+  return String(s == null ? '' : s)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function construirIndice(){
+  INDICE = Object.keys(CATALOGO).map(cod => {
+    const l = CATALOGO[cod];
+    const t = norm(l.t);
+    return {
+      cod,
+      livro: l,
+      t,
+      tw: t.split(' '),
+      st: norm(limparSub(l.s)),
+      a: norm(limparAutor(l.a)),
+      o: norm((l.g || '') + ' ' + (l.e || ''))
+    };
+  });
+}
+construirIndice();
+
+function buscar(consulta){
+  const tokens = norm(consulta).split(' ').filter(Boolean);
+  if(!tokens.length) return [];
+  const frase = tokens.join(' ');
+  const achados = [];
+  INDICE.forEach(it => {
+    const palheiro = it.t + ' ' + it.st + ' ' + it.a + ' ' + it.o + ' ' + it.cod;
+    if(!tokens.every(tk => palheiro.includes(tk))) return;
+    let pontos = 0;
+    if(it.t === frase) pontos += 100;
+    else if(it.t.startsWith(frase)) pontos += 60;
+    else if(it.t.includes(frase)) pontos += 40;
+    tokens.forEach(tk => {
+      if(it.tw.some(w => w.startsWith(tk))) pontos += 6;
+      if(it.t.includes(tk)) pontos += 4;
+      if(it.a.includes(tk)) pontos += 3;
+      if(it.st.includes(tk)) pontos += 1;
+    });
+    achados.push({ it, pontos });
+  });
+  achados.sort((x, y) => (y.pontos - x.pontos) || x.it.t.localeCompare(y.it.t, 'pt-BR'));
+  return achados.map(a => a.it);
+}
+
+const LIMITE_LISTA = 50;
+let modo = 'vazio'; // 'vazio' | 'dica' | 'lista' | 'livro'
+
+function mostrarVazio(){
+  modo = 'vazio';
+  els.result.innerHTML = HTML_VAZIO;
+}
+
+function htmlLinha(it){
+  const l = it.livro;
+  const autor = limparAutor(l.a);
+  const temDesc = Number(l.d) > 0 && Number(l.p) > Number(l.pl);
+  return `
+    <button type="button" class="row" data-cod="${escapeHtml(it.cod)}">
+      <span class="row-main">
+        <span class="row-title">${escapeHtml(tituloBonito(l.t))}</span>
+        ${autor ? `<span class="row-author">${escapeHtml(autor)}</span>` : ''}
+      </span>
+      <span class="row-price">R$ ${formatBRL(l.pl)}${temDesc ? `<small>${fmtPct(l.d)}% off</small>` : ''}</span>
+    </button>`;
+}
+
+async function executarBusca(){
+  const q = els.busca.value;
+  els.btnClear.hidden = !q;
+  const qn = norm(q);
+
+  if(!qn.length){
+    if(modo === 'lista' || modo === 'dica') mostrarVazio();
+    return;
+  }
+  if(qn.length < 2){
+    modo = 'dica';
+    els.result.innerHTML = '<div class="empty"><b>Continue digitando</b><p>Digite pelo menos 2 letras do título ou do autor.</p></div>';
+    return;
+  }
+
+  await remessasPromise;
+  if(els.busca.value !== q) return; // o texto mudou enquanto esperava
+
+  const itens = buscar(q);
+  modo = 'lista';
+  if(!itens.length){
+    els.result.innerHTML = `
+      <div class="empty">
+        <b>Nenhum livro encontrado</b>
+        <p>Nada para “${escapeHtml(q.trim())}”. Tente só uma parte do título ou o sobrenome do autor.</p>
+      </div>`;
+    return;
+  }
+  const mostrados = itens.slice(0, LIMITE_LISTA);
+  const cabecalho = itens.length > LIMITE_LISTA
+    ? `Mostrando ${LIMITE_LISTA} de ${itens.length} livros. Digite mais para refinar.`
+    : `${itens.length} ${itens.length === 1 ? 'livro encontrado' : 'livros encontrados'}`;
+  els.result.innerHTML = `<div class="list-head">${cabecalho}</div>${mostrados.map(htmlLinha).join('')}`;
+}
+
+let buscaTimer = null;
+els.busca.addEventListener('input', () => {
+  els.btnClear.hidden = !els.busca.value;
+  clearTimeout(buscaTimer);
+  buscaTimer = setTimeout(executarBusca, 150);
+});
+function buscaConfirmada(){
+  if(!norm(els.busca.value)){ els.busca.focus(); return; }
+  clearTimeout(buscaTimer);
+  executarBusca();
+  els.busca.blur(); // fecha o teclado pra mostrar a lista inteira
+}
+els.busca.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){ e.preventDefault(); buscaConfirmada(); }
+});
+els.btnBuscar.addEventListener('click', buscaConfirmada);
+els.btnClear.addEventListener('click', () => {
+  els.busca.value = '';
+  els.btnClear.hidden = true;
+  if(modo === 'lista' || modo === 'dica') mostrarVazio();
+  els.busca.focus();
+});
+
+// --- Toque numa linha da lista / botão "voltar" ---
+els.result.addEventListener('click', (e) => {
+  const linha = e.target.closest('.row');
+  if(linha){
+    els.busca.blur();
+    mostrarLivro(linha.dataset.cod, CATALOGO[linha.dataset.cod], { voltar: true });
+    if(els.result.getBoundingClientRect().top < 0){
+      els.result.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+    return;
+  }
+  if(e.target.closest('.back')){ executarBusca(); }
+});
+
+// --- Menu ---
+const btnMenu = document.getElementById('btn-menu');
+const menuPanel = document.getElementById('menu-panel');
+btnMenu.addEventListener('click', () => {
+  const fechado = menuPanel.hasAttribute('hidden');
+  if(fechado){
+    menuPanel.removeAttribute('hidden');
+  }else{
+    menuPanel.setAttribute('hidden', '');
+  }
+  btnMenu.setAttribute('aria-expanded', fechado ? 'true' : 'false');
+});
+
+document.getElementById('btn-reload').addEventListener('click', async () => {
+  els.fileStatus.textContent = 'Atualizando remessas…';
+  remessasPromise = carregarRemessas();
+  await remessasPromise;
+  els.status.textContent = `Remessas atualizadas — ${Object.keys(CATALOGO).length} título(s).`;
+  if(modo === 'lista') executarBusca();
+});
+
+// --- Resumos: guia publicado no GitHub (automático) ou arquivo carregado à mão ---
+function updateResumosStatusUI(){
+  const saved = loadCustomResumos();
+  if(saved && saved.resumos){
+    const count = Object.keys(saved.resumos).length;
+    els.resumosStatus.innerHTML = `Arquivo carregado manualmente: <strong>${escapeHtml(saved.fileName)}</strong> — ${count} resumo(s). <br>(tem prioridade sobre o guia publicado no site)`;
+    els.btnRemoveResumos.style.display = '';
+  }else if(RESUMOS_SOURCE === 'repo'){
+    const count = Object.keys(RESUMOS_CUSTOM).length;
+    els.resumosStatus.innerHTML = `Guia publicado no site: <strong>${escapeHtml(RESUMOS_REPO_NOME)}</strong> — ${count} resumo(s).`;
+    els.btnRemoveResumos.style.display = 'none';
+  }else{
+    els.resumosStatus.textContent = 'Nenhum guia de resumos publicado — usando resumo do Google Books quando disponível.';
+    els.btnRemoveResumos.style.display = 'none';
+  }
+}
+updateResumosStatusUI();
+
+document.getElementById('btn-load-resumos').addEventListener('click', () => {
+  document.getElementById('resumos-file-input').click();
+});
+
+document.getElementById('resumos-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  els.status.textContent = 'Lendo arquivo de resumos…';
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const mapa = resumosJsonToMapa(data);
+    const count = Object.keys(mapa).length;
+    if(!count){ throw new Error('Nenhum resumo válido encontrado nesse arquivo.'); }
+    if(!saveCustomResumos(file.name, mapa)){
+      throw new Error('Não deu para salvar (armazenamento cheio ou bloqueado pelo navegador).');
+    }
+    RESUMOS_CUSTOM = mapa;
+    RESUMOS_SOURCE = 'manual';
+    updateResumosStatusUI();
+    els.status.textContent = `Arquivo "${file.name}" carregado — ${count} resumo(s).`;
+  }catch(err){
+    els.status.textContent = `Erro ao ler o arquivo: ${err.message || 'JSON inválido'}`;
+  }
+});
+
+document.getElementById('btn-remove-resumos').addEventListener('click', async () => {
+  clearCustomResumos();
+  RESUMOS_CUSTOM = {};
+  RESUMOS_SOURCE = 'nenhum';
+  els.status.textContent = 'Arquivo manual removido — verificando guia do site…';
+  await loadResumosDoRepo();
+  const rotulo = RESUMOS_SOURCE === 'repo' ? 'guia publicado no site' : 'resumo do Google Books';
+  els.status.textContent = `Arquivo manual removido — usando ${rotulo}.`;
+});
+
+// --- Diagnóstico: o que foi lido do GitHub agora ---
+document.getElementById('btn-debug').addEventListener('click', () => {
+  const out = document.getElementById('debug-output');
+  let texto = 'Catálogo em uso: ' + (CATALOGO_SOURCE === 'github' ? 'remessas do GitHub' : CATALOGO_SOURCE === 'padrao' ? 'RESERVA (embutido no código)' : 'carregando') + '\n';
+  texto += 'Títulos no catálogo: ' + Object.keys(CATALOGO).length + '\n\n';
+  REMESSAS_INFO.forEach(r => {
+    const situacao = r.estado === 'ok' ? `lida — ${r.titulos} título(s)`
+      : r.estado === 'ausente' ? 'não encontrada'
+      : `erro — ${r.detalhe}`;
+    texto += r.nome + ': ' + situacao + '\n';
+  });
+  texto += '\nResumos: ' + (RESUMOS_SOURCE === 'repo' ? `guia do GitHub (${RESUMOS_REPO_NOME}), ${Object.keys(RESUMOS_CUSTOM).length} resumo(s)`
+    : RESUMOS_SOURCE === 'manual' ? `arquivo manual, ${Object.keys(RESUMOS_CUSTOM).length} resumo(s)`
+    : 'nenhum guia — usando Google Books');
+  out.textContent = texto;
+  out.style.display = 'block';
+});
+
+// --- Detalhe do livro ---
+const ICONE_VOLTAR = '<svg class="icon" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>';
+
+function mostrarLivro(codigo, livro, opts){
+  opts = opts || {};
+  modo = 'livro';
+  if(!livro){
+    els.result.innerHTML = `
+      <div class="notice">
+        <b>Código não encontrado nas remessas</b>
+        <span class="code">${escapeHtml(codigo)}</span>
+        <p>Confira se o livro faz parte da remessa ou busque pelo título.</p>
+      </div>`;
+    return;
+  }
+  const titulo = tituloBonito(livro.t);
+  const autor = limparAutor(livro.a);
+  const sub = limparSub(livro.s);
+  const temDesc = Number(livro.d) > 0 && Number(livro.p) > Number(livro.pl);
+  const chips = (livro.g || temDesc)
+    ? `<div class="chips">
+        ${temDesc ? `<span class="chip off">${fmtPct(livro.d)}% off</span>` : ''}
+        ${livro.g ? `<span class="chip">${escapeHtml(livro.g)}</span>` : ''}
+      </div>`
+    : '';
+  els.result.innerHTML = `
+    <article class="book">
+      ${opts.voltar ? `<button type="button" class="back">${ICONE_VOLTAR}Resultados</button>` : ''}
+      ${chips}
+      <h2 class="book-title">${escapeHtml(titulo)}</h2>
+      ${sub ? `<p class="book-sub">${escapeHtml(sub)}</p>` : ''}
+      ${autor ? `<p class="book-author">${escapeHtml(autor)}</p>` : ''}
+      <div class="price-row">
+        <div class="price">
+          ${temDesc ? `<span class="price-old">R$ ${formatBRL(livro.p)}</span>` : ''}
+          <span class="price-new">R$ ${formatBRL(livro.pl)}</span>
+        </div>
+        <div class="stock">Estoque na remessa<b>${livro.q} un.</b></div>
+      </div>
+      <div class="resumo" id="resumo-box">
+        <span class="resumo-label">Resumo</span>
+        <span id="resumo-text">Buscando resumo…</span>
+      </div>
+    </article>`;
+  fetchResumo(codigo, Object.assign({}, livro, { a: autor, s: sub }));
+}
+
+// --- Resumo breve do livro (guia de atendimento ou Google Books, usando o ISBN) ---
+async function fetchResumo(isbn, livro){
+  const box = document.getElementById('resumo-text');
+  if(!box) return;
+  if(RESUMOS_CUSTOM[isbn]){
+    box.textContent = RESUMOS_CUSTOM[isbn];
+    return;
+  }
+  const quem = livro.a ? ` de ${livro.a}` : '';
+  const resumoBasico = `${livro.g || 'livro'}${quem}${livro.s ? ': ' + livro.s : '.'}`;
+  try{
+    const resp = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    if(!resp.ok) throw new Error('offline');
+    const data = await resp.json();
+    const info = data.items && data.items[0] && data.items[0].volumeInfo;
+    let desc = info && info.description;
+    if(desc){
+      desc = desc.replace(/<[^>]+>/g, ''); // remove eventual html
+      if(desc.length > 260){
+        desc = desc.slice(0, 260).replace(/\s+\S*$/, '') + '…';
+      }
+      box.textContent = desc;
+    }else{
+      box.textContent = `Sem resumo disponível — ${resumoBasico}`;
+    }
+  }catch(err){
+    box.textContent = `Resumo indisponível sem internet — ${resumoBasico}`;
+  }
+}
+
+// --- Leitura pelo código de barras (usada pela câmera) ---
+async function lookup(rawCode){
+  const codigo = (rawCode || '').trim().replace(/\D/g, '');
+  if(!codigo){ return; }
+  await remessasPromise;
+  mostrarLivro(codigo, CATALOGO[codigo], { voltar: false });
+  if(navigator.vibrate){ navigator.vibrate(60); }
+}
+
+// --- Câmera / html5-qrcode ---
+let html5QrCode = null;
+let lastCode = null;
+let lastTime = 0;
+
+// --- Indicador visual de leitura bem-sucedida (cantos do quadro de mira acendem em verde) ---
+const scanFrameEl = document.getElementById('scan-frame');
+let scanFlashTimeout = null;
+function flashScanSuccess(){
+  if(!scanFrameEl) return;
+  scanFrameEl.classList.remove('success');
+  // força reflow pra permitir repetir a animação em leituras seguidas
+  void scanFrameEl.offsetWidth;
+  scanFrameEl.classList.add('success');
+  clearTimeout(scanFlashTimeout);
+  scanFlashTimeout = setTimeout(() => {
+    scanFrameEl.classList.remove('success');
+  }, 500);
+}
+
+function onScanSuccess(decodedText){
+  const now = Date.now();
+  // evita repetir a mesma leitura freneticamente
+  if(decodedText === lastCode && (now - lastTime) < 2500) return;
+  lastCode = decodedText;
+  lastTime = now;
+  flashScanSuccess();
+  lookup(decodedText);
+}
+
+// --- Leitor nativo do navegador (BarcodeDetector) ---
+// Onde existir (Chrome/Android recente), é bem mais rápido e confiável pra
+// código de barras 1D do que o decodificador em JS puro que o html5-qrcode usa
+// por padrão. Roda em paralelo, sem substituir o outro — o que achar primeiro, usa.
+let nativeBarcodeDetector = null;
+let nativeDetectorLoopId = null;
+
+async function setupNativeBarcodeDetector(){
+  if(!('BarcodeDetector' in window)) return null;
+  try{
+    const supported = await BarcodeDetector.getSupportedFormats();
+    const wanted = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39']
+      .filter(f => supported.includes(f));
+    if(!wanted.length) return null;
+    return new BarcodeDetector({ formats: wanted });
+  }catch(e){
+    return null;
+  }
+}
+
+function startNativeDetectorLoop(){
+  if(!nativeBarcodeDetector) return;
+  const videoEl = document.querySelector('#reader video');
+  if(!videoEl) return;
+  stopNativeDetectorLoop();
+  nativeDetectorLoopId = setInterval(async () => {
+    if(videoEl.readyState < 2) return; // sem frame pronto ainda
+    try{
+      const codes = await nativeBarcodeDetector.detect(videoEl);
+      if(codes && codes.length){
+        onScanSuccess(codes[0].rawValue);
+      }
+    }catch(e){ /* ignora falha pontual de um frame e tenta o próximo */ }
+  }, 200);
+}
+
+function stopNativeDetectorLoop(){
+  if(nativeDetectorLoopId){
+    clearInterval(nativeDetectorLoopId);
+    nativeDetectorLoopId = null;
+  }
+}
+
+let selectedCameraId = null;
+
+function populateCameraList(devices){
+  els.cameraList.innerHTML = '';
+  if(!devices || !devices.length){
+    els.cameraList.innerHTML = '<option value="">Nenhuma câmera encontrada</option>';
+    return;
+  }
+  devices.forEach((cam, i) => {
+    const opt = document.createElement('option');
+    opt.value = cam.id;
+    opt.textContent = cam.label || `Câmera ${i + 1}`;
+    els.cameraList.appendChild(opt);
+  });
+  const backCam = devices.find(c => /back|traseir|rear|environment/i.test(c.label || ''));
+  selectedCameraId = (backCam || devices[devices.length - 1]).id;
+  els.cameraList.value = selectedCameraId;
+}
+
+// --- Lista as câmeras disponíveis e preenche o seletor ---
+async function loadCameras(){
+  try{
+    const devices = await Html5Qrcode.getCameras();
+    populateCameraList(devices);
+  }catch(err){
+    // Fallback: pede permissão manualmente e usa enumerateDevices direto
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = allDevices
+        .filter(d => d.kind === 'videoinput')
+        .map(d => ({ id: d.deviceId, label: d.label }));
+      populateCameraList(videoDevices);
+    }catch(err2){
+      const msg = (err2 && (err2.message || err2.name)) || 'erro desconhecido';
+      els.cameraList.innerHTML = `<option value="">Câmera indisponível: ${msg}</option>`;
+    }
+  }
+}
+
+els.cameraList.addEventListener('change', async () => {
+  selectedCameraId = els.cameraList.value;
+  if(html5QrCode && html5QrCode.getState && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING){
+    await stopScanner();
+    startScanner();
+  }
+});
+
+async function startScanner(){
+  els.status.textContent = 'Iniciando câmera…';
+  try{
+    if(!html5QrCode){
+      html5QrCode = new Html5Qrcode('reader');
+    }
+    if(!selectedCameraId){
+      await loadCameras();
+    }
+    const config = {
+      fps: 10,
+      qrbox: (viewfinderW, viewfinderH) => {
+        // Código de barras (EAN/UPC) é uma faixa larga e baixa — uma caixa quase
+        // quadrada (como estava) sobra espaço em branco em cima/embaixo que
+        // atrapalha o decodificador. Isso aqui usa quase toda a largura e uma
+        // faixa baixa, focada só na altura das barras.
+        const width = Math.floor(viewfinderW * 0.9);
+        const height = Math.floor(Math.min(viewfinderH * 0.35, width * 0.4));
+        return { width, height };
+      },
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ]
+    };
+    await html5QrCode.start(
+      selectedCameraId ? selectedCameraId : { facingMode: 'environment' },
+      config,
+      onScanSuccess
+    );
+    els.status.textContent = 'Câmera ativa — aponte para o código de barras.';
+    if(!nativeBarcodeDetector){
+      nativeBarcodeDetector = await setupNativeBarcodeDetector();
+    }
+    startNativeDetectorLoop();
+  }catch(err){
+    els.status.textContent = 'Câmera ao vivo indisponível aqui — use "Tirar foto do código" abaixo.';
+  }
+}
+
+async function stopScanner(){
+  stopNativeDetectorLoop();
+  if(html5QrCode){
+    try{ await html5QrCode.stop(); }catch(e){}
+    els.status.textContent = 'Câmera pausada.';
+  }
+  setTorchState(false);
+}
+
+document.getElementById('btn-start').addEventListener('click', async () => {
+  if(!selectedCameraId){ await loadCameras(); }
+  startScanner();
+});
+document.getElementById('btn-stop').addEventListener('click', stopScanner);
+
+// --- Trocar câmera (botão sobre o visor) ---
+document.getElementById('btn-flip').addEventListener('click', async () => {
+  const opts = Array.from(els.cameraList.options).filter(o => o.value);
+  if(opts.length < 2) return;
+  const idx = opts.findIndex(o => o.value === selectedCameraId);
+  const next = opts[(idx + 1) % opts.length];
+  selectedCameraId = next.value;
+  els.cameraList.value = selectedCameraId;
+  if(html5QrCode && html5QrCode.getState && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING){
+    await stopScanner();
+    startScanner();
+  }
+});
+
+// --- Lanterna (botão sobre o visor) ---
+let torchOn = false;
+const btnTorch = document.getElementById('btn-torch');
+function setTorchState(on){
+  torchOn = on;
+  btnTorch.classList.toggle('active', on);
+}
+btnTorch.addEventListener('click', async () => {
+  if(!html5QrCode || !html5QrCode.getRunningTrackCameraCapabilities){
+    els.status.textContent = 'Ligue a câmera antes de usar a lanterna.';
+    return;
+  }
+  try{
+    const caps = html5QrCode.getRunningTrackCameraCapabilities();
+    const torchFeature = caps.torchFeature();
+    if(!torchFeature || !torchFeature.isSupported()){
+      els.status.textContent = 'Lanterna não é suportada nesta câmera.';
+      return;
+    }
+    await torchFeature.apply(!torchOn);
+    setTorchState(!torchOn);
+  }catch(err){
+    els.status.textContent = 'Não foi possível controlar a lanterna aqui.';
+  }
+});
+
+// --- Fallback: tirar foto e decodificar (funciona mesmo sem câmera "ao vivo") ---
+const fileInput = document.getElementById('file-input');
+document.getElementById('btn-photo').addEventListener('click', () => {
+  fileInput.click();
+});
+fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  els.status.textContent = 'Lendo código na foto…';
+  try{
+    if(!html5QrCode){
+      html5QrCode = new Html5Qrcode('reader');
+    }
+    const decoded = await html5QrCode.scanFile(file, false);
+    els.status.textContent = 'Código lido pela foto.';
+    onScanSuccess(decoded);
+  }catch(err){
+    els.status.textContent = 'Não consegui ler o código nessa foto — tente de novo, mais perto e com boa luz.';
+  }
+  fileInput.value = '';
+});
+
+// Busca as remessas e o guia de resumos publicados no GitHub assim que a página
+// abre — não bloqueia a câmera, tudo acontece em paralelo.
+remessasPromise = carregarRemessas();
+loadResumosDoRepo();
+
+// tenta iniciar a câmera ao vivo automaticamente; funciona de forma confiável
+// quando a página é servida por HTTPS (ex: GitHub Pages / Netlify).
+window.addEventListener('load', async () => {
+  await loadCameras();
+  startScanner();
+});
+
+// --- PWA: registra o service worker (cache offline + instalação na tela inicial) ---
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
